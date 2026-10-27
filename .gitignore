@@ -1,0 +1,29 @@
+# Godot
+.godot/
+*.translation
+# Anchored: an unanchored build/ also swallows android/build/, which must be committed.
+/build/
+
+# Gradle build outputs inside the Android build template. The template itself
+# (android/) IS committed: Godot requires android/build/ plus android/.build_version
+# to exist for an OpenXR (Gradle) Android export, and regenerating it needs the
+# 214 MB android_source.zip from the export templates.
+android/build/.gradle/
+android/build/build/
+android/build/**/.gradle/
+!android/build/.build_version
+# Engine libraries: 207 MB of prebuilt .aar. They are copied out of the export
+# templates by build.sh so they need not live in git history.
+android/build/libs/debug/godot-lib.*.aar
+android/build/libs/release/godot-lib.*.aar
+android/local.properties
+
+# Debug signing key is committed on purpose (it is a debug key, not a secret);
+# keep any release key out.
+release.keystore
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
