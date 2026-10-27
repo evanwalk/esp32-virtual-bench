@@ -1,4 +1,7 @@
 # Builds the APK and runs the suite. No secrets: the export uses the committed debug key.
+#
+# CI calls the same build.sh the README documents, so the documented path is what CI
+# proves. Only the toolchain install differs.
 name: build
 
 on:
@@ -36,7 +39,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Install Godot, templates and SDK
+      - name: Install toolchain
         run: |
           sudo apt-get update -qq && sudo apt-get install -yqq unzip
           curl -sSL -o godot.zip \
@@ -47,9 +50,6 @@ jobs:
 
           curl -sSL -o templates.tpz \
             "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
-          TPL="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
-          mkdir -p "$TPL"
-          unzip -q -j templates.tpz 'templates/android_*' -d "$TPL"
 
           SDK="$HOME/android-sdk"
           mkdir -p "$SDK/cmdline-tools"
@@ -60,25 +60,13 @@ jobs:
           "$SDK/cmdline-tools/latest/bin/sdkmanager" \
             "platform-tools" "platforms;android-36" "build-tools;36.1.0" "ndk;29.0.14206865"
           echo "$SDK" > /tmp/sdkpath
-      - name: Export
+      - name: Build
         run: |
           SDK="$(cat /tmp/sdkpath)"
-          mkdir -p "$HOME/.config/godot"
-          cat > "$HOME/.config/godot/editor_settings-4.7.tres" <<EOF
-          [gd_resource type="EditorSettings" format=3]
-
-          [resource]
-          export/android/android_sdk_path = "$SDK"
-          export/android/java_sdk_path = "$JAVA_HOME"
-          export/android/debug_keystore = "$PWD/debug.keystore"
-          export/android/debug_keystore_user = "androiddebugkey"
-          export/android/debug_keystore_pass = "android"
-          EOF
-          export ANDROID_HOME="$SDK"
-          mkdir -p build
-          ./godot --headless --import
-          ./godot --headless --export-debug "Quest3" build/vbench.apk
-          test -s build/vbench.apk
+          # The runner image also pre-sets ANDROID_SDK_ROOT to a different SDK; Gradle
+          # refuses conflicting SDK locations, so align them.
+          export ANDROID_HOME="$SDK" ANDROID_SDK_ROOT="$SDK"
+          GODOT=./godot GODOT_TPZ=./templates.tpz ./build.sh
       - uses: actions/upload-artifact@v4
         with:
           name: vbench-apk

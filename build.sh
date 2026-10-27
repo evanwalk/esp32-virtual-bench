@@ -12,6 +12,9 @@ set -euo pipefail
 
 : "${ANDROID_HOME:?set ANDROID_HOME to your Android SDK}"
 : "${JAVA_HOME:?set JAVA_HOME to a JDK 17}"
+# Gradle refuses to build if ANDROID_SDK_ROOT names a different SDK, and CI images
+# pre-set it. Align it with ANDROID_HOME.
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
 GODOT="${GODOT:-./Godot_v4.7.2-stable_linux.x86_64}"
 ARCH="$(uname -m)"
 APP_VERSION="4.7.2.stable"
@@ -41,11 +44,12 @@ if [ ! -f android/build/build.gradle ]; then
 fi
 printf '%s\n' "$APP_VERSION" > android/.build_version
 
-# 3. Engine libraries (gitignored, ~207 MB) must be present in the Gradle project.
-echo "==> installing engine libraries"
-mkdir -p android/build/libs/debug android/build/libs/release
-unzip -o -j "$TPL/android_debug.apk" 'libs/*' -d android/build/libs/debug > /dev/null 2>&1 || true
-unzip -o -j "$TPL/android_release.apk" 'libs/*' -d android/build/libs/release > /dev/null 2>&1 || true
+# 3. Engine libraries (gitignored, ~207 MB) live inside android_source.zip and must be
+#    present in the Gradle project. Only the archive's libs/ tree is extracted.
+if [ ! -f android/build/libs/debug/godot-lib.template_debug.aar ]; then
+  echo "==> installing engine libraries"
+  unzip -o "$TPL/android_source.zip" 'libs/*' -d android/build > /dev/null
+fi
 
 # 4. Debug keystore, generated once.
 if [ ! -f debug.keystore ]; then
